@@ -6,7 +6,7 @@ Le back-end s'architecture en 3 parties
 <a href="https://ibb.co/LkkRfvn"><img src="https://i.ibb.co/1vvQxb8/Untitled-document.png" alt="Untitled-document" border="0"></a>
 - Les modèles sont des classes qui ont pour unique but de réaliser les requêtes à la base de données.
 - Les contrôleurs sont des méthodes regroupées par classe de la même manière que les modèles (pour une classe User dans les modèles, on aura une classe User dans les contrôleurs). Les contrôleurs prennent en paramètre une requête HTTP, la traite (gestion d'erreurs : vérifier que les champs existent, qu'ils ont les valeurs attendus etc...) et renvoie une réponse au format JSON.
-- Les routes sont des fonctions où l'on appelle le contrôleur qui lui est associé (une route ne devrait faire qu'une ligne). Ainsi il y a unu contrôleur par route.
+- Les routes sont des fonctions où l'on appelle le contrôleur qui lui est associé (une route ne devrait faire qu'une ligne). Ainsi il y a qu'un contrôleur par route.
 
 
 > Pourquoi détaché les routes et les contrôleurs et ne pas simplement mettre directement l'implémentation des contrôleurs dans les routes ?
