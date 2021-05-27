@@ -4,11 +4,9 @@ from flask import Flask
 
 app = Flask(__name__)
 
-
 @app.route('/')
 def hello():
-    user = UserModel.getUserById('9aaa9de6-bb0b-11eb-8529-0242ac130003')
-    return user
+    return 'hello world'
 
 
 @app.route('/time')

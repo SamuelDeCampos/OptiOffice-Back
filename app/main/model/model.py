@@ -24,16 +24,15 @@ class Model:
 
     def __read(self, columns: str, filters: str, foreignTable: str) -> SupabaseQueryBuilder:
         return self.__table.select(columns)\
-            .or(filters, {foreignTable: foreignTable})\
             .execute()
 
     def __update(self, filters: str, foreignTable: str, row: dict[str, object]):
         self.__rowsCheck(row)
         self.__table\
             .update(row)\
-            .or(filters, {foreignTable: foreignTable})
+            .execute()
 
     def __delete(self, filters: str):
         self.__table\
             .delete()\
-            .or(filters)
+            .execute()
