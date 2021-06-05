@@ -1,29 +1,68 @@
 import bcrypt
-from supabase_py.client import SupabaseQueryBuilder
-from .model import Model
+import uuid
+from ..db_client import client
+from typing import Union
 
-userColumns = {
-    'id': '',
-    'username': '',
-    'password': ''
-}
+MINIMUM_PASSWORD_LENGTH = 6
 
 
-class User(Model):
+class User:
     def __init__(self):
-        super().__init__(userColumns, 'users')
+        self.table = 'users'
+        self.client_user = ['id', 'username', 'email', 'created_at']
 
-    def createUser(self, username: str, email: str, password: str):
-        password = bcrypt.hashpw(password, bcrypt.gensalt())
-        user = {'username': username, 'email': email, 'password': password}
+    def __userAlreadyExists(self, email: str) -> bool:
+        already_existing_user = client.select(self.table, ['*'], [('email', 'eq', email)])
 
-        self.__create([user])
+        if len(already_existing_user) > 0:
+            return True
+        return False
 
-    def getUserById(self, uuid: str) -> SupabaseQueryBuilder:
-        return self.__read('*', f'id.eq.{uuid}')
+    def __checkPasswordValidity(self, password: str) -> bool:
+        return len(password) > MINIMUM_PASSWORD_LENGTH
 
-    def getUserByLogin(self, login: str) -> SupabaseQueryBuilder:
-        return self.__read('*', f'username.eq.{login},email.eq.{login}')
+    def __encryptPassword(self, password: str) -> str:
+        return bcrypt.hashpw(bytes(password, encoding='utf-8'), bcrypt.gensalt()).decode()
+
+    def getUserById(self, uuid: str) -> dict[str, object]:
+        return client.select(self.table, self.client_user, [('id', 'eq', uuid)])
+
+    def getUserByLogin(self, login: str) -> dict[str, object]:
+        return client.select(self.table, self.client_user, [('username', 'eq', login, 'email', 'eq', login)])
+
+    def createUser(self, username: str, email: str, password: str) -> Union[dict[str, object], None]:
+        if self.__userAlreadyExists(email):
+            return None
+        if not self.__checkPasswordValidity(password):
+            return None
+
+        user = {
+            'id': uuid.uuid4(),
+            'username': username,
+            'email': email,
+            'password': self.__encryptPassword(password)
+        }
+
+        return client.insert(self.table, [user])
+
+    def updateUsername(self, uuid: str, new_username: str) -> dict[str, object]:
+        return client.update(self.table, {'username': new_username}, [('id', 'eq', uuid)])
+
+    def updateEmail(self, uuid: str, new_email: str) -> Union[dict[str, object], None]:
+        if self.__userAlreadyExists(new_email):
+            return None
+        return client.update(self.table, {'email': new_email}, [('id', 'eq', uuid)])
+
+    def updatePassword(self, uuid: str, new_password: str) -> Union[dict[str, object], None]:
+        if self.__checkPasswordValidity(new_password):
+            return None
+
+        password = self.__encryptPassword(new_password)
+
+        return client.update(self.table, {'password': password}, [('id', 'eq', uuid)])
+
+    def deleteUser(self, uuid: str) -> dict[str, object]:
+        return client.delete(self.table, ['id', 'eq', uuid])
 
 
 UserModel = User()
