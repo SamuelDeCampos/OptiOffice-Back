@@ -2,7 +2,7 @@ import requests
 from urllib.parse import urlencode
 import json
 
-from config import DB_CONFIG
+from .config import DB_CONFIG
 
 
 class RequestFiltersException(Exception):
@@ -54,7 +54,7 @@ class DatabaseClient:
             'wfts': 'wfts'
         }
 
-    def __readFilters(self, filters: [tuple[object]]) -> dict[str, object]:
+    def __read_filters(self, filters: [tuple[object]]) -> [dict[str, object]]:
         url_params = {}
 
         for f in filters:
@@ -79,14 +79,7 @@ class DatabaseClient:
 
         return url_params
 
-    def select(self, table: str, columns: [str], filters: [tuple[object]]) -> dict[str, object]:
-        url = f'{self.__url}{table}'
-        params = {'select': ','.join(columns)}
-        params.update(self.__readFilters(filters))
-
-        return json.loads(requests.get(url, headers=self.__header, params=params).text)
-
-    def insert(self, table: str, rows: [dict[str, object]]) -> dict[str, object]:
+    def get_columns_from_rows(self, rows):
         columns = rows[0].keys()
 
         for row in rows:
@@ -94,23 +87,31 @@ class DatabaseClient:
 
             if len(missing) > 0:
                 columns.append(missing[0])
+        return columns
 
-        params = {'columns': ','.join(columns)}
+    def select(self, table: str, columns: [str], filters: [tuple[object]]) -> [dict[str, object]]:
+        url = f'{self.__url}{table}'
+        params = {'select': ','.join(columns)}
+        params.update(self.__read_filters(filters))
+
+        return json.loads(requests.get(url, headers=self.__header, params=params).text)
+
+    def insert(self, table: str, rows: [dict[str, object]]) -> [dict[str, object]]:
+        params = {'columns': ','.join(self.get_columns_from_rows(rows))}
         url = f'{self.__url}{table}?{urlencode(params)}'
 
         return json.loads(requests.post(url, headers=self.__header, data=json.dumps(rows)).text)
 
-    def update(self, table: str, row: dict[str, object], filters: [tuple[object]]) -> dict[str, object]:
+    def update(self, table: str, row: dict[str, object], filters: [tuple[object]]) -> [dict[str, object]]:
         url = f'{self.__url}{table}'
-        params = self.__readFilters(filters)
+        params = self.__read_filters(filters)
 
         return json.loads(requests.patch(url, headers=self.__header, params=params, data=json.dumps(row)).text)
 
-    def delete(self, table: str, filters: [tuple[object]]) -> dict[str, object]:
+    def delete(self, table: str, filters: [tuple[object]]) -> [dict[str, object]]:
         url = f'{self.__url}{table}'
-        params = self.__readFilters(filters)
+        params = self.__read_filters(filters)
 
         return json.loads(requests.delete(url, headers=self.__header, params=params).text)
 
-
-client = DatabaseClient(DB_CONFIG.get('HOST_URL'), DB_CONFIG.get('HOST_KEY'))
+client = DatabaseClient(DB_CONFIG.get('HOST_ID'), DB_CONFIG.get('HOST_KEY'))

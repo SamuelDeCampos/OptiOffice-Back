@@ -1,68 +1,55 @@
 import bcrypt
 import uuid
-from ..db_client import client
+import datetime
+import jwt
+from model import Model
 from typing import Union
+
+from ..config import SECRET_KEY
 
 MINIMUM_PASSWORD_LENGTH = 6
 
 
-class User:
+class User(Model):
     def __init__(self):
-        self.table = 'users'
-        self.client_user = ['id', 'username', 'email', 'created_at']
+        super().__init__('users')
+        self.schema = [
+            {
+                'name': 'id',
+                'default': lambda model: uuid.uuid4()
+            },
+            {
+                'name': 'username',
+            },
+            {
+                'name': 'email',
+                'validator': lambda value, model: len(model.select(['*'], [('email', 'eq', value)])) == 0
+            },
+            {
+                'name': 'password',
+                'validator': lambda value, model: len(value) >= 6,
+                'mapper': lambda value, model: bcrypt.hashpw(bytes(value, encoding='utf-8'), bcrypt.gensalt()).decode()
+            }
+        ]
 
-    def __userAlreadyExists(self, email: str) -> bool:
-        already_existing_user = client.select(self.table, ['*'], [('email', 'eq', email)])
+    def __map_to_client_model(self, row):
+        del row['password']
+        return row
 
-        if len(already_existing_user) > 0:
-            return True
-        return False
-
-    def __checkPasswordValidity(self, password: str) -> bool:
-        return len(password) > MINIMUM_PASSWORD_LENGTH
-
-    def __encryptPassword(self, password: str) -> str:
-        return bcrypt.hashpw(bytes(password, encoding='utf-8'), bcrypt.gensalt()).decode()
-
-    def getUserById(self, uuid: str) -> dict[str, object]:
-        return client.select(self.table, self.client_user, [('id', 'eq', uuid)])
-
-    def getUserByLogin(self, login: str) -> dict[str, object]:
-        return client.select(self.table, self.client_user, [('username', 'eq', login, 'email', 'eq', login)])
-
-    def createUser(self, username: str, email: str, password: str) -> Union[dict[str, object], None]:
-        if self.__userAlreadyExists(email):
-            return None
-        if not self.__checkPasswordValidity(password):
-            return None
-
-        user = {
-            'id': uuid.uuid4(),
-            'username': username,
-            'email': email,
-            'password': self.__encryptPassword(password)
-        }
-
-        return client.insert(self.table, [user])
-
-    def updateUsername(self, uuid: str, new_username: str) -> dict[str, object]:
-        return client.update(self.table, {'username': new_username}, [('id', 'eq', uuid)])
-
-    def updateEmail(self, uuid: str, new_email: str) -> Union[dict[str, object], None]:
-        if self.__userAlreadyExists(new_email):
-            return None
-        return client.update(self.table, {'email': new_email}, [('id', 'eq', uuid)])
-
-    def updatePassword(self, uuid: str, new_password: str) -> Union[dict[str, object], None]:
-        if self.__checkPasswordValidity(new_password):
-            return None
-
-        password = self.__encryptPassword(new_password)
-
-        return client.update(self.table, {'password': password}, [('id', 'eq', uuid)])
-
-    def deleteUser(self, uuid: str) -> dict[str, object]:
-        return client.delete(self.table, ['id', 'eq', uuid])
+    def __encode_auth_token(self, user_id):
+        try:
+            payload = {
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=0, seconds=5),
+                'iat': datetime.datetime.utcnow(),
+                'sub': user_id
+            }
+            return jwt.encode(
+                payload,
+                SECRET_KEY,
+                algorithm='HS256'
+            )
+        except Exception as e:
+            return e
 
 
 UserModel = User()

@@ -56,3 +56,4 @@ virtualenv==20.4.6
 virtualenv-clone==0.5.4
 websockets==8.1
 Werkzeug==2.0.1
+flask-jwt-auth==0.0.6
